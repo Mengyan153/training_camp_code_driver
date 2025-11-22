@@ -72,6 +72,8 @@ PR 是 GitHub 上请求将你的代码**合并到主仓库**的标准流程。�
 **Let’s Code, Learn, and Grow Together!** 💻✨
 
 ---
+最后，如果你也对科技圈：新闻、看法；学习博客感兴趣。请加入：
+![Daily](/images/Daily-image.png)
 
 > 🏗️ 维护者：牧码南山团队  
 > 📅 启动时间：2025 年秋季
