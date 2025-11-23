@@ -35,13 +35,13 @@ Stable Diffusion 是一个条件生成模型，可以根据文本提示生成高
 
 # 主要思路：拆分数据处理流程
 
-![图2: Stable Diffusion 的传统分布式训练流水线](../../assets/sd_traditional_distributed_training_pipeline.png)
+![图2: Stable Diffusion 的传统分布式训练流水线](../../assets/sd_distributed_train_pipeline.png)
 
 传统上，**整个 Stable Diffusion 模型（包括 Encoders、U-Net）被放在单个 GPU 上**。训练工作者从存储中加载输入图像和提示（如使用 PyTorch DataLoader），然后将它们输入到模型中。
 
 在如 A100 这类具有足够大 GRAM 的 GPUs 环境下，这仍然是可行的。但这可能会导致严重的**低利用率问题**。
 
-![图3: 在 A100-80GB 上一个迭代中 GPU 内存随时间的占用情况。红色虚线表示每个步骤的起始和结束时间。](../../assets/sd_memory_usage.png)
+![图3: 在 A100-80GB 上一个迭代中 GPU 内存随时间的占用情况。红色虚线表示每个步骤的起始和结束时间。](../../assets/sd_gpu_memory_usage.png)
 
 根据图 3 中的内存分析结果，我们可以看到“Encoders Forward”步骤可能是瓶颈。在这里，迭代时间的 0.44 秒（约 39%）花费在编码器上，而 GRAM 的利用率仅约为 25%。使用 A100 进行编码器推理有些过度。如果我们能将编码器从 A100 移出，仅在其上训练 U-Net，GPU 利用率应该会相应提高。
 
@@ -49,7 +49,7 @@ Stable Diffusion 是一个条件生成模型，可以根据文本提示生成高
 
 一种直接的思路是在训练前对编码进行预计算，以便能够解耦编码器和 U-Net。如图 4 所示，我们将整个训练工作量分成两个独立的任务。
 
-![图4: 离线预处理的训练流水线](../../assets/sd_offline_preprocessing_pipeline.png)
+![图4: 离线预处理的训练流水线](../../assets/sd_offline_preprocessing.png)
 
 一个离线预处理作业，包括以下步骤：
 
@@ -75,7 +75,7 @@ Stable Diffusion 是一个条件生成模型，可以根据文本提示生成高
 
 对比：Torch DataLoader 的基线方法，该方法从 S3 加载原始图像和文本，并在运行时通过图像和文本编码器对其进行编码。
 
-![表1：在 32 x A100-80GB、使用 Torch Dataloader 和 Ray Data 离线预处理下的训练吞吐量。微批量大小在分辨率 256 和 512 时分别为 128 和 32。](../../assets/sd_offline_preprocessing_pipeline.png)
+![表1：在 32 x A100-80GB、使用 Torch Dataloader 和 Ray Data 离线预处理下的训练吞吐量。微批量大小在分辨率 256 和 512 时分别为 128 和 32。](../../assets/sd_raydata_table.png)
 
 表 1 显示了解码器和 U-Net 解耦带来的吞吐量提升。Ray Data 离线预处理在分辨率为 256 和 512 的图像上，分别比 Torch DataLoader 基线提升了 1.45x 和 1.26x。
 
@@ -89,14 +89,14 @@ Stable Diffusion 是一个条件生成模型，可以根据文本提示生成高
 
 因此，我们提出一个端到端的训练管道，将数据摄取、预处理和模型训练整合到一个作业中。此方法克服了离线预处理的局限性，同时不牺牲解耦编码器带来的吞吐量提升。
 
-![图5：使用 Ray Data 的在线预处理。具体来说，训练阶段使用 A100 GPUs，数据处理阶段使用 A10G GPUs。](../../assets/sd_online_preprocessing_pipeline.png)
+![图5：使用 Ray Data 的在线预处理。具体来说，训练阶段使用 A100 GPUs，数据处理阶段使用 A10G GPUs。](../../assets/sd_online_preprocessing.png)
 
 图 5 展示了总体架构，包括以下关键特性：
 
 - **异构实例协同：**利用异构实例类型进行数据和训练处理。Ray Data 允许在不同的实例类型上启动预处理工作器和训练工作器。这是相对于现有解决方案（如 torch dataloader）的独特优势，因为后者要求数据预处理和模型训练在同一节点上耦合；
 - **自动化数据流与分片：**Ray Data 可以从云存储内直接流式读取数据，经由预处理工作器，最终传输至训练工作器。数据批次会自动均匀分片，整个传输过程基于 Ray 内存对象存储完成，无需额外的中间存储。
 
-![图 6：Ray Data 在线预处理下不同 A10G 数量的训练吞吐量。在在线和离线预处理设置中，训练均使用 32 x A100-80G GPUs。](../../assets/sd_online_preprocessing_pipeline_speed.png)
+![图 6：Ray Data 在线预处理下不同 A10G 数量的训练吞吐量。在在线和离线预处理设置中，训练均使用 32 x A100-80G GPUs。](../../assets/sd_online_preprocessing_speed.png)
 
 图 6 显示了在线预处理的可扩展性。在本实验中，我们固定分布式训练所使用的 A100 数量，同时扩大在线预处理所使用的 A10G GPU 数量。训练吞吐量呈线性提升，直到 A100 的训练工作负载成为瓶颈。最终，它收敛到离线预处理所达到的吞吐量。
 
