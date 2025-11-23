@@ -31,7 +31,7 @@ PR 是 GitHub 上请求将你的代码**合并到主仓库**的标准流程。�
 ### ✅ 提交流程（三步走）
 
 1. **Fork 本仓库**  
-   点击右上角 **`Fork`** 按钮，将 `training_camp_2025` 复制到你的个人 GitHub 账号下。
+   点击右上角 **`Fork`** 按钮，将 `training_camp_code_driver` 复制到你的个人 GitHub 账号下。
 
 2. **在你的 Fork 中开发**  
    - 克隆到本地：`git clone https://github.com/你的用户名/training_camp_2025.git`  
@@ -42,7 +42,7 @@ PR 是 GitHub 上请求将你的代码**合并到主仓库**的标准流程。�
 3. **发起 Pull Request**  
    - 回到 GitHub，在你的 Fork 仓库页面点击 **`Contribute → Open Pull Request`**  
    - 确保目标分支是 `牧码南山:main`  
-   - 填写清晰的 PR 标题（如：`[AI] 张三_20241234 - 手写数字识别练习`）  
+   - 填写清晰的 PR 标题（如：`[add] - 手写数字识别练习`）  
    - 提交！等待审核合并 ✅
 
 ---
